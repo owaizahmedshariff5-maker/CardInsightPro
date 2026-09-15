@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -32,12 +32,16 @@ jobs:
           cache-dependency-path: 'frontend/yarn.lock'
 
       - name: Install dependencies
-        run: cd frontend && yarn install
+        run: cd frontend && yarn install --frozen-lockfile
 
       - name: Build frontend
         run: cd frontend && yarn build
         env:
           REACT_APP_BACKEND_URL: ${{ secrets.REACT_APP_BACKEND_URL || 'http://127.0.0.1:8000' }}
+          CI: false
+
+      - name: Check build output
+        run: ls -la frontend/build/
 
       - name: Upload build artifact
         uses: actions/upload-pages-artifact@v2
