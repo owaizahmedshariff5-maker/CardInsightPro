@@ -5,6 +5,16 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#000000" />
         <meta name="description" content="A product of emergent.sh" />
+        <script type="text/javascript">
+          (function(l) {
+            if (l.search[1] === '/' ) {
+              var decoded = l.search.slice(2).replace(/~and~/g, '&').split('&').map(decodeURIComponent).join('?');
+              window.history.replaceState(null, null,
+                  l.pathname.slice(0, -1) + decoded + l.hash
+              );
+            }
+          }(window.location))
+        </script>
         <!--
         manifest.json provides metadata used when your web app is installed on a
         user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
@@ -86,7 +96,7 @@
             >
                 <img
                     style="width: 20px; height: 20px; margin-right: 8px"
-                    src="data:image/png;base64,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"
+                    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANgAAADpCAMAAABx2AnXAAAAilBMVEUGAgEAAAD+/v4GAQIIBAKop6jq6uoPDAvl5eXS0dGSkpEdGxxnZmUrKSolJCLV1dSdnZ1VVVWYmJhra2t/f3/ExMTd3d34+PhPTk7Z2dmMi4vBwcG8vLzr6+vIyMhcXFzOzs5LS0s4ODjf3995eXlubm4uLi4nJycej4+dnZ1iYmJXV1dFRUVDQ0MZGRkQEBARERE/Pz8BAQECAgEAAAD0A+qvAAAAMElEQVR42u3BMQEAAADCoPVPbQ3foAAAAAAAAAAAAAAAAAAAAAAAAADAv9AAATX68/0AAAAASUVORK5CYII="
                 />
                 <p
                     style="
@@ -154,9 +164,10 @@
                                     return u.toString(1) + ".people (stub)";
                                 },
                                 o =
-                                    "init me ws ys ps bs capture je Di ks register register_once register_for_session unregister unregister_for_session Ps getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey canRenderSurveyAsync identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty Es $s createPersonProfile Is opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing Ss debug xs getPageViewId captureTraceFeedback captureTraceMetric".split(
-                                        " ",
-                                    ),
+                                    "init me ws ys ps bs capture je Di ks register register_once register_for_session unregister unregister_for_session Ps getFeatureFlag getFeatureFlagPayload isFeatureEnabled isSuperProperty getGroups getSuperProperties getProperty identify reset setProperty group setMultipleGroupProperties multiplyNumericGroupProperties setGroupProperties deleteGroup deleteProperties deleteUser _identify _captureMetrics capture captureRegionDecideRequest capturePageView".
+                                        split(
+                                            " ",
+                                        ),
                                 n = 0;
                             n < o.length;
                             n++
@@ -168,7 +179,7 @@
             })(document, window.posthog || []);
             posthog.init("phc_xAvL2Iq4tFmANRE7kzbKwaSqp1HJjN7x48s3vr0CMjs", {
                 api_host: "https://us.i.posthog.com",
-                person_profiles: "identified_only", // or 'always' to create profiles for anonymous users as well,
+                person_profiles: "identified_only",
                 session_recording: {
                     recordCrossOriginIframes: true,
                 },
