@@ -1,6 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
@@ -15,17 +14,30 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import io
+from dotenv import load_dotenv
 
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+# Load environment variables
+load_dotenv()
 
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Configuration
+MONGO_URL = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
+DB_NAME = os.getenv('DB_NAME', 'cardinsightpro')
+PORT = int(os.getenv('PORT', 8000))
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
 
-app = FastAPI()
+# Parse CORS origins
+CORS_ORIGINS_STR = os.getenv('CORS_ORIGINS', 'http://localhost:3000')
+CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS_STR.split(',')]
+
+# Initialize MongoDB
+client = AsyncIOMotorClient(MONGO_URL)
+db = client[DB_NAME]
+
+# FastAPI app
+app = FastAPI(title="Corporate Card Analytics API", version="1.0.0")
 api_router = APIRouter(prefix="/api")
 
+# Pydantic Models
 class Transaction(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -72,16 +84,27 @@ class ProductRecommendation(BaseModel):
     priority: str
     expected_value: str
 
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Render"""
+    try:
+        await client.admin.command('ping')
+        return {"status": "healthy", "environment": ENVIRONMENT}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}, 503
+
+# API Routes
 @api_router.get("/")
 async def root():
-    return {"message": "Corporate Card Analytics API"}
+    return {"message": "Corporate Card Analytics API", "version": "1.0.0"}
 
 async def run_segmentation():
     """Run K-Means clustering on customer data"""
     customers = await db.customers.find({}, {"_id": 0}).to_list(1000)
     
     if len(customers) < 4:
-        raise HTTPException(status_code=400, detail="Not enough customers for segmentation")
+        raise HTTPException(status_code=400, detail="Not enough customers for segmentation (minimum 4)")
     
     df = pd.DataFrame(customers)
     
@@ -114,7 +137,7 @@ async def run_segmentation():
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    n_clusters = min(4, len(customers))  # Ensure we don't create more clusters than customers
+    n_clusters = min(4, len(customers))
     kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     df['segment_id'] = kmeans.fit_predict(X_scaled)
     
@@ -214,7 +237,6 @@ async def seed_data():
         customers_data.append(customer)
         
         num_transactions = random.randint(20, 100)
-        customer_transactions = []
         
         for _ in range(num_transactions):
             amount = abs(np.random.normal(base_spend / num_transactions, base_spend * volatility / num_transactions))
@@ -229,9 +251,7 @@ async def seed_data():
                 "transaction_date": (datetime.now(timezone.utc) - timedelta(days=random.randint(0, 90))).isoformat(),
                 "merchant_name": f"{random.choice(['Acme', 'Global', 'Premier', 'Express'])} {random.choice(merchant_categories).split()[0]}"
             }
-            customer_transactions.append(transaction)
-        
-        transactions_data.extend(customer_transactions)
+            transactions_data.append(transaction)
     
     if customers_data:
         await db.customers.insert_many(customers_data)
@@ -437,10 +457,6 @@ async def get_customer(customer_id: str):
         {"_id": 0}
     ).to_list(1000)
     
-    for txn in transactions:
-        if isinstance(txn.get('transaction_date'), str):
-            txn['transaction_date'] = txn['transaction_date']
-    
     return {
         "customer": customer,
         "transactions": transactions
@@ -621,34 +637,36 @@ async def get_transactions(customer_id: Optional[str] = None):
     ).to_list(10000)
     return transactions
 
+# Include API router
 app.include_router(api_router)
 
-# Configure CORS - update with your frontend URL
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080",
-        "http://localhost:5500",
-        "http://127.0.0.1:5500"
-    ],
+    allow_origins=CORS_ORIGINS if ENVIRONMENT == 'production' else ['*'],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Logging configuration
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
+# Shutdown event
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+    logger.info("Database connection closed")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run(
+        "server:app",
+        host="0.0.0.0",
+        port=PORT,
+        reload=(ENVIRONMENT == 'development')
+    )
